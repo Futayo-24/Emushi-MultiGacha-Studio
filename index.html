@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Emushi Gacha Tool - FX Edition</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:#0f1630cc; --accent:#5aa1ff; --accent2:#8bd5ff;
+    --gold:#d9b061; --text:#ecf3ff; --muted:#99a4c2; --danger:#ff6b7a; --ok:#50e3a4;
+    --glass: blur(8px) saturate(120%);
+  }
+  html,body{height:100%}
+  body{margin:0; color:var(--text); background:var(--bg);
+       font-family: ui-sans-serif,system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial; overflow-x:hidden;}
+  /* 背景（イラスト+粒子） */
+  .bg-img{position:fixed; inset:0; pointer-events:none; z-index:-2;
+    background:
+      radial-gradient(1200px 600px at 90% -10%, #5aa1ff22, transparent 60%),
+      radial-gradient(800px 800px at 10% 110%, #8bd5ff22, transparent 60%),
+      url("image/emushi_mainvisual_00.png") center/cover no-repeat;
+    filter:saturate(110%) contrast(105%) brightness(90%); opacity:.22;}
+  #starfield{position:fixed; inset:0; z-index:-1; pointer-events:none;}
+
+  .wrap{max-width:1100px; margin:28px auto; padding:0 16px;}
+  .title{display:flex; align-items:center; gap:12px; margin:0 0 8px 0; font-weight:800; letter-spacing:.3px}
+  .badge{padding:4px 10px; border:1px solid #ffffff22; border-radius:999px; font-size:12px; color:var(--gold); background:#171d35aa; box-shadow:0 0 0 1px #000 inset}
+  .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .sound-toggle{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px;
+    background:#101737; border:1px solid #2b396d; color:#cfe3ff; cursor:pointer; user-select:none; font-weight:700;
+  }
+  .sound-toggle[data-on="true"]{background:linear-gradient(180deg,#23306d,#1a2760); box-shadow:0 0 0 1px #3b57b8 inset}
+
+  .tabs{display:flex; gap:8px; margin:14px 0}
+  .tab-btn{appearance:none; border:none; cursor:pointer; padding:12px 16px; border-radius:12px;
+    color:#cfe3ff; background:#101737; border:1px solid #ffffff22; font-weight:700; transition:.2s transform,.2s box-shadow,.2s background;}
+  .tab-btn.active{background:linear-gradient(180deg,#23306d,#1a2760); box-shadow:0 0 0 1px #3b57b8 inset, 0 8px 24px #24399666}
+
+  .card{background: linear-gradient(180deg,#121a37aa,#0e1531cc); backdrop-filter:var(--glass);
+    border:1px solid #ffffff22; border-radius:18px; box-shadow:0 20px 60px #0008, inset 0 1px #ffffff11;}
+  .grid{display:grid; gap:16px}
+  @media(min-width:900px){ .grid-2{grid-template-columns:1.2fr .8fr} }
+  .section{padding:18px; opacity:0; transform:translateY(14px);
+    transition: opacity .45s ease, transform .45s ease;}
+  .section.active{opacity:1; transform:translateY(0)}
+  .row{display:flex; gap:10px; flex-wrap:wrap}
+  .field{display:flex; flex-direction:column; gap:6px; min-width:160px; flex:1}
+  .field label{font-size:12px; color:var(--muted)}
+  input[type="text"],input[type="number"],textarea,select{
+    width:100%; box-sizing:border-box; background:#0c1332; color:#ecf3ff;
+    border:1px solid #2b396d; border-radius:12px; padding:12px 12px; outline:none; transition:.15s border,.15s box-shadow;}
+  input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{appearance:none;margin:0}
+  input:focus,textarea:focus,select:focus{border-color:#5aa1ff; box-shadow:0 0 0 3px #5aa1ff22}
+  .btn{appearance:none; border:none; border-radius:12px; padding:12px 14px; cursor:pointer; color:#0c122a; font-weight:800;
+       background:linear-gradient(180deg,#79b1ff,#4d7eff); box-shadow:0 8px 20px #2444ff66, inset 0 1px #ffffffaa; transition:.15s transform,.2s filter;}
+  .btn:hover{filter:brightness(1.06)} .btn:active{transform:translateY(1px)}
+  .btn-ghost{color:#d7e6ff; background:#101737; border:1px solid #2b396d; box-shadow:none; font-weight:700;}
+  .btn-danger{ background:linear-gradient(180deg,#ff8aa0,#ff5a73); box-shadow:0 8px 20px #ff2e6955}
+  .btn-ok{ background:linear-gradient(180deg,#7de1b6,#46c98f); box-shadow:0 8px 20px #2bd68d55}
+  .small{font-size:12px; color:var(--muted)}
+  .warn{color:var(--danger); font-weight:800}
+  .pill{padding:6px 10px; border-radius:999px; background:#10183b; border:1px solid #2a3a73; color:#cfe3ff; font-size:12px}
+  .log{height:220px; overflow:auto; background:#0b1231; border:1px solid #22316a; border-radius:12px; padding:10px}
+  .result{min-height:160px; background:#0b1231; border:1px solid #22316a; border-radius:12px; padding:10px}
+  .divider{height:1px; background:linear-gradient(90deg,transparent,#3b4d8e,transparent); margin:12px 0}
+  .subcard{border:1px solid #2a3a73; border-radius:14px; padding:12px; background:#0f1536; box-shadow: inset 0 1px #ffffff10;}
+
+  /* 一覧 */
+  .tr{display:grid; grid-template-columns:40px 1fr 1fr 100px 120px; gap:8px; align-items:center; padding:8px 10px; margin-bottom:8px;
+      background:#0f1536; border:1px solid #25326a; border-radius:12px; position:relative}
+  .handle{cursor:grab; color:#7f9ad9; text-align:center}
+  .rarity{font-weight:800; color:#9dc6ff}
+  .prob{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .tr.added{animation:addPop .36s ease}
+  @keyframes addPop{0%{transform:scale(.92); box-shadow:0 0 0 2px #5aa1ff66 inset; background:#5aa1ff22}
+                    100%{transform:scale(1); box-shadow:none; background:#0f1536}}
+
+  /* 抽選演出（結果アイテムのエフェクトは削除済み） */
+  .overlay{position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:50;
+           background:radial-gradient(circle at center,#5aa1ff22,transparent 70%);}
+  .overlay.show{display:flex; animation:fadeIn .25s ease}
+  .overlay .panel{padding:18px 22px; border-radius:16px; background:#0b1231ee; border:1px solid #2b3b74;
+                  box-shadow:0 18px 60px #000a; font-weight:800; letter-spacing:.3px}
+  .spinner{width:44px; height:44px; border-radius:999px; border:4px solid #2a3a73; border-right-color:#79b1ff; animation:spin 1s linear infinite; margin:auto}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}} @keyframes spin{to{transform:rotate(360deg)}}
+  .flash{position:fixed; inset:0; pointer-events:none; z-index:49; opacity:0;
+         background:radial-gradient(circle at center, #ffffff66 0%, transparent 70%);}
+  .flash.active{animation:flash .65s ease}
+  @keyframes flash{0%{opacity:0} 20%{opacity:1} 100%{opacity:0}}
+</style>
+</head>
+<body>
+<canvas id="starfield"></canvas>
+<div class="bg-img" aria-hidden="true"></div>
+
+<div class="wrap">
+  <div class="toolbar">
+    <h1 class="title">Emushi Gacha Tool <span class="badge">FX + JSON Profiles</span></h1>
+    <div id="soundToggle" class="sound-toggle" role="button" aria-pressed="true" data-on="true">
+      🔊 サウンド：<span id="soundLabel">ON</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="settings">設定</button>
+    <button class="tab-btn" data-tab="draw">抽選</button>
+    <button class="tab-btn" data-tab="storage">保存/読み込み</button>
+  </div>
+
+  <!-- 設定 -->
+  <div id="tab-settings" class="card section active grid grid-2">
+    <div>
+      <h3>商品を追加</h3>
+      <div class="row">
+        <div class="field"><label>レア度（自由入力）</label><input id="in-rarity" type="text" placeholder="UR / SSR / SR / R / N"></div>
+        <div class="field"><label>商品名</label><input id="in-name" type="text" placeholder="直筆サイン色紙"></div>
+        <div class="field"><label>確率（%）</label><input id="in-prob" type="number" min="0" step="0.0001" placeholder="0.3333"></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px">
+        <button class="btn" id="btn-add">商品追加</button>
+        <button class="btn btn-ghost" id="btn-clear">一覧クリア</button>
+      </div>
+      <div class="divider"></div>
+      <h3>商品一覧 <span id="sum-prob" class="small"></span></h3>
+      <div class="small">ドラッグ（≡）で並び替えできます。表示順は抽選結果にも反映。</div>
+      <div id="list"></div>
+      <div class="small" id="warn-over"></div>
+    </div>
+
+    <div>
+      <h3>ヘルパー</h3>
+      <div class="row" style="gap:10px; flex-wrap:wrap">
+        <span class="pill">合計確率: <span id="kpi-total">0%</span></span>
+        <span class="pill">ハズレ: <span id="kpi-miss">100%</span></span>
+        <span class="pill">アイテム数: <span id="kpi-count">0</span></span>
+      </div>
+      <p class="small">※合計確率が100%未満の分は自動で「ハズレ」。100%超過時は警告＆抽選ブロック。</p>
+
+      <h3 style="margin-top:18px">JSON入出力（ファイル／コピペ）</h3>
+      <div class="row" style="gap:8px">
+        <button class="btn btn-ghost" id="btn-export-file">書き出し(.json)</button>
+        <button class="btn btn-ghost" id="btn-import-file">読み込み(.json)</button>
+        <input id="file-input" type="file" accept=".json,application/json" style="display:none">
+      </div>
+      <div class="row" style="gap:8px; margin-top:6px">
+        <button class="btn btn-ghost" id="btn-export">テキストにエクスポート</button>
+        <button class="btn btn-ghost" id="btn-import">テキストからインポート</button>
+      </div>
+      <textarea id="json-area" rows="8" placeholder='[{"rarity":"SSR","name":"景品A","prob":1.5}]' style="margin-top:10px"></textarea>
+    </div>
+  </div>
+
+  <!-- 抽選 -->
+  <div id="tab-draw" class="card section grid grid-2" style="display:none">
+    <div>
+      <!-- 1回抽選（分離） -->
+      <div class="subcard" style="margin-bottom:12px">
+        <h3 style="margin:0 0 8px 0">シングル抽選</h3>
+        <div class="row" style="gap:8px; align-items:center">
+          <button class="btn" id="btn-once">1回抽選</button>
+        </div>
+      </div>
+
+      <!-- 回数指定抽選（分離） -->
+      <div class="subcard">
+        <h3 style="margin:0 0 8px 0">回数指定で抽選</h3>
+        <div class="row" style="gap:8px; align-items:center">
+          <input id="in-times" type="number" min="1" value="10" style="width:120px">
+          <button class="btn btn-ghost step" data-step="-1000">-1000</button>
+          <button class="btn btn-ghost step" data-step="-100">-100</button>
+          <button class="btn btn-ghost step" data-step="-10">-10</button>
+          <button class="btn btn-ghost step" data-step="-1">-1</button>
+          <button class="btn btn-ghost step" data-step="1">+1</button>
+          <button class="btn btn-ghost step" data-step="10">+10</button>
+          <button class="btn btn-ghost step" data-step="100">+100</button>
+          <button class="btn btn-ghost step" data-step="1000">+1000</button>
+          <button class="btn btn-ok" id="btn-batch">回数指定で抽選</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <h3>今回の結果</h3>
+      <div id="result" class="result"></div>
+      <h3 style="margin-top:14px">累計結果</h3>
+      <div id="total" class="result"></div>
+      <div class="row" style="gap:8px;margin-top:6px">
+        <button class="btn btn-ghost" id="btn-total-reset">累計リセット</button>
+      </div>
+    </div>
+    <div>
+      <h3>ログ</h3>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <!-- プロファイル -->
+  <div id="tab-storage" class="card section" style="display:none">
+    <h3>ガチャ企画の保存 / 読み込み（JSONプロファイル）</h3>
+    <div class="row">
+      <div class="field" style="max-width:320px"><label>プロファイル名</label><input id="profile-name" type="text" placeholder="闇ガチャ_配信"></div>
+      <div class="field" style="max-width:320px"><label>保存済みプロファイル</label><select id="profile-list"></select></div>
+    </div>
+    <div class="row" style="gap:8px;margin-top:8px">
+      <button class="btn" id="btn-profile-save">この設定を保存</button>
+      <button class="btn btn-ghost" id="btn-profile-load">読み込み</button>
+      <button class="btn btn-ghost" id="btn-profile-rename">名前変更</button>
+      <button class="btn btn-danger" id="btn-profile-delete">削除</button>
+    </div>
+    <p class="small">保存先はブラウザの <b>localStorage</b>。同一PC・同一ブラウザで利用してね。</p>
+  </div>
+</div>
+
+<!-- SE（任意ファイル）。無くてもエラー無視＆無音 -->
+<audio id="sfx-draw" src="sfx_draw.mp3" preload="auto"></audio>
+
+<!-- 抽選演出UI -->
+<div id="drawOverlay" class="overlay" aria-hidden="true">
+  <div class="panel">
+    <div class="spinner"></div>
+    <div style="text-align:center; margin-top:10px">Now Drawing...</div>
+  </div>
+</div>
+<div id="flash" class="flash" aria-hidden="true"></div>
+
+<script>
+/* ================== 状態 ================== */
+const state = {
+  items: [], totals: {}, profileKey: "emushi_gacha_profiles_v1",
+  soundKey: "emushi_gacha_sound_on",
+  soundOn: true,
+};
+
+/* ================== DOMヘルパ ================== */
+const $ = q=>document.querySelector(q);
+const listEl=$("#list"), sumEl=$("#sum-prob"), warnEl=$("#warn-over");
+const kpiTotal=$("#kpi-total"), kpiMiss=$("#kpi-miss"), kpiCount=$("#kpi-count");
+
+/* ================== サウンド切替 ================== */
+const soundToggle = $("#soundToggle");
+const soundLabel = $("#soundLabel");
+initSound();
+soundToggle.addEventListener("click", ()=>{
+  state.soundOn = !state.soundOn;
+  localStorage.setItem(state.soundKey, state.soundOn ? "1":"0");
+  applySoundUI();
+});
+function initSound(){
+  const saved = localStorage.getItem(state.soundKey);
+  state.soundOn = saved===null ? true : saved==="1";
+  applySoundUI();
+}
+function applySoundUI(){
+  soundToggle.dataset.on = state.soundOn ? "true":"false";
+  soundLabel.textContent = state.soundOn ? "ON":"OFF";
+}
+function playSE(id){
+  if(!state.soundOn) return;
+  const a = document.getElementById(id);
+  if(a){ try{ a.currentTime=0; a.play().catch(()=>{}); }catch{} }
+}
+
+/* ================== タブ切替（演出付き） ================== */
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const key = btn.dataset.tab;
+    ["settings","draw","storage"].forEach(t=>{
+      const el = $("#tab-"+t);
+      const show = (t===key);
+      el.style.display = show ? "" : "none";
+      requestAnimationFrame(()=>{ el.classList.toggle("active", show); });
+    });
+  });
+});
+
+/* ================== 商品追加/描画 ================== */
+function uuid(){ return Math.random().toString(36).slice(2,10); }
+function fmtPct(v){ return (Math.round(v*10000)/10000) + "%"; }
+function clampInt(v,min=1){ return Math.max(min, Math.floor(v||0)); }
+function nowStr(){ return new Date().toLocaleString(); }
+function escapeHtml(s){return (s??"").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+
+$("#btn-add").addEventListener("click", ()=>{
+  const r=$("#in-rarity").value.trim();
+  const n=$("#in-name").value.trim();
+  const p=+$("#in-prob").value;
+  if(!n){ alert("商品名を入力してください"); return; }
+  if(!(p>=0)){ alert("確率(%) を入力してください"); return; }
+  const newItem={id:uuid(), rarity:r||"", name:n, prob:+p};
+  state.items.push(newItem);
+  renderList();
+  const row = listEl.querySelector(`.tr[data-id="${newItem.id}"]`);
+  if(row) row.classList.add("added"); // 追加アニメ
+});
+$("#btn-clear").addEventListener("click", ()=>{ if(confirm("一覧をクリアしますか？")){ state.items=[]; renderList(); }});
+
+function renderList(){
+  listEl.innerHTML = "";
+  const sum = state.items.reduce((a,b)=>a+(+b.prob||0),0);
+  const over = sum>100.0000001;
+  sumEl.textContent = `（合計: ${fmtPct(sum)}）`;
+  warnEl.textContent = over ? "合計確率が100%を超えています。調整してください。" : "";
+  warnEl.className = over ? "small warn" : "small";
+  kpiTotal.textContent = fmtPct(sum);
+  kpiMiss.textContent = fmtPct(Math.max(0,100-sum));
+  kpiCount.textContent = state.items.length;
+
+  state.items.forEach(it=>{
+    const row=document.createElement("div");
+    row.className="tr"; row.draggable=true; row.dataset.id=it.id;
+
+    const handle=document.createElement("div"); handle.className="handle"; handle.textContent="≡"; row.appendChild(handle);
+
+    const rarity=document.createElement("div");
+    rarity.innerHTML=`<span class="rarity">${it.rarity||"-"}</span><div class="small" style="opacity:.8">${escapeHtml(it.name)}</div>`;
+    row.appendChild(rarity);
+
+    const prob=document.createElement("div"); prob.innerHTML=`<span class="prob">${fmtPct(+it.prob||0)}</span>`; row.appendChild(prob);
+
+    const editWrap=document.createElement("div");
+    editWrap.innerHTML=`<input type="number" step="0.0001" value="${it.prob}" style="width:100%; box-sizing:border-box" />`;
+    editWrap.querySelector("input").addEventListener("change",(e)=>{ it.prob=+e.target.value; renderList();});
+    row.appendChild(editWrap);
+
+    const del=document.createElement("div"); del.className="del";
+    const btn=document.createElement("button"); btn.className="btn btn-danger"; btn.textContent="削除";
+    btn.addEventListener("click", ()=>{ state.items=state.items.filter(x=>x.id!==it.id); renderList(); });
+    del.appendChild(btn); row.appendChild(del);
+
+    listEl.appendChild(row);
+  });
+  enableReorder();
+}
+
+function enableReorder(){
+  let dragging=null;
+  listEl.querySelectorAll(".tr").forEach(row=>{
+    row.addEventListener("dragstart",(e)=>{ dragging=row; row.style.opacity=".6"; });
+    row.addEventListener("dragend",()=>{ row.style.opacity="1"; });
+    row.addEventListener("dragover",(e)=>{
+      e.preventDefault(); if(!dragging || dragging===row) return;
+      const rect=row.getBoundingClientRect();
+      const before=(e.clientY-rect.top)<rect.height/2;
+      listEl.insertBefore(dragging, before?row:row.nextSibling);
+    });
+  });
+  listEl.addEventListener("drop", ()=>{
+    const orderIds = Array.from(listEl.querySelectorAll(".tr")).map(el=>el.dataset.id);
+    state.items.sort((a,b)=> orderIds.indexOf(a.id) - orderIds.indexOf(b.id));
+    renderList();
+  }, {once:true});
+}
+
+/* ================== JSON I/O（ファイル/テキスト） ================== */
+// テキスト
+$("#btn-export").addEventListener("click", ()=>{
+  const data = state.items.map(({rarity,name,prob})=>({rarity,name,prob}));
+  $("#json-area").value = JSON.stringify(data, null, 2);
+});
+$("#btn-import").addEventListener("click", ()=>{
+  try{
+    const arr = JSON.parse($("#json-area").value||"[]"); if(!Array.isArray(arr)) throw 0;
+    state.items = arr.map(o=>({id:uuid(), rarity:o.rarity||"", name:o.name||"", prob:+o.prob||0}));
+    renderList();
+  }catch{ alert("JSONの形式が不正です"); }
+});
+
+// ファイル書き出し
+$("#btn-export-file").addEventListener("click", ()=>{
+  const payload = state.items.map(({rarity,name,prob})=>({rarity,name,prob}));
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g,"-");
+  const prof = ($("#profile-name").value.trim() || "gacha");
+  a.href = url; a.download = `${prof}_${stamp}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+// ファイル読み込み
+$("#btn-import-file").addEventListener("click", ()=> $("#file-input").click());
+$("#file-input").addEventListener("change", (e)=>{
+  const file = e.target.files?.[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const arr = JSON.parse(String(reader.result||"[]"));
+      if(!Array.isArray(arr)) throw 0;
+      state.items = arr.map(o=>({id:uuid(), rarity:o.rarity||"", name:o.name||"", prob:+o.prob||0}));
+      renderList();
+    }catch{ alert("JSONの形式が不正です"); }
+    e.target.value = ""; // 同じファイル再読込できるようにリセット
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+/* ================== 抽選ロジック + 演出 ================== */
+function calcPools(){
+  const items=state.items.map(x=>({...x}));
+  const sum=items.reduce((a,b)=>a+(+b.prob||0),0);
+  if(sum>100.0000001){ alert("合計確率が100%を超えています。抽選できません。"); return null; }
+  const miss=Math.max(0,100-sum);
+  const pools=items.map(x=>({id:x.id,name:x.name,rarity:x.rarity,prob:+x.prob}));
+  if(miss>0) pools.push({id:"miss",name:"ハズレ",rarity:"-",prob:miss});
+  let acc=0; pools.forEach(p=>{acc+=p.prob;p._end=acc}); return {pools,total:acc};
+}
+function drawN(n){
+  const info=calcPools(); if(!info) return;
+  showOverlay(true); flash(true); playSE("sfx-draw");
+  const {pools,total}=info;
+  const counts={}; state.items.forEach(it=>counts[it.id]=0); if(pools.find(p=>p.id==="miss")) counts.miss=0;
+
+  const chunkSize=100000;
+  const doChunk=(left)=>{
+    const m=Math.min(left,chunkSize);
+    for(let i=0;i<m;i++){
+      const r=Math.random()*total;
+      const hit=pools.find(p=>r<p._end);
+      counts[hit.id]=(counts[hit.id]||0)+1;
+    }
+    const remain=left-m;
+    if(remain>0){ setTimeout(()=>doChunk(remain),0); }
+    else{
+      for(const k in counts){ state.totals[k]=(state.totals[k]||0)+counts[k]; }
+      renderResult(counts,$("#result"));
+      renderResult(state.totals,$("#total"));
+      appendLog(n,counts);
+      setTimeout(()=>{ showOverlay(false); }, 200);
+    }
+  };
+  doChunk(n);
+}
+function renderResult(map, el){
+  const rows=[];
+  state.items.forEach(it=>{
+    const c=map[it.id]||0;
+    if(c>0) rows.push(`<span class="pill">${it.rarity||"-"}｜${escapeHtml(it.name)} × <b>${c}</b></span>`);
+  });
+  if(map.miss>0) rows.push(`<span class="pill">ハズレ × <b>${map.miss}</b></span>`);
+  el.innerHTML = rows.length? rows.join(" "):`<span class="small">（結果なし）</span>`;
+}
+function appendLog(n,session){
+  const parts=[];
+  state.items.forEach(it=>{ const c=session[it.id]||0; if(c>0) parts.push(`${it.name}×${c}`); });
+  if(session.miss>0) parts.push(`ハズレ×${session.miss}`);
+  $("#log").insertAdjacentHTML("afterbegin", `<div class="small">[${nowStr()}] ${n}回：${parts.join(" / ")||"（なし）"}</div>`);
+}
+function showOverlay(show){
+  const o=$("#drawOverlay"); o.classList.toggle("show",show); o.setAttribute("aria-hidden", String(!show));
+}
+function flash(run){
+  const f=$("#flash"); if(run){ f.classList.remove("active"); void f.offsetWidth; f.classList.add("active"); }
+}
+
+/* 抽選UI */
+$("#btn-once").addEventListener("click", ()=> drawN(1));
+$("#btn-batch").addEventListener("click", ()=>{
+  const n=clampInt(+$("#in-times").value,1); $("#in-times").value=n; drawN(n);
+});
+document.querySelectorAll(".step").forEach(b=>b.addEventListener("click", ()=>{
+  const step=parseInt(b.dataset.step,10);
+  const v=clampInt((+$("#in-times").value||0)+step,1);
+  $("#in-times").value=v;
+}));
+$("#btn-total-reset").addEventListener("click", ()=>{ if(confirm("累計結果をリセットしますか？")){ state.totals={}; $("#total").innerHTML=""; }});
+
+/* ================== プロファイル保存 ================== */
+function loadProfiles(){ try{ return JSON.parse(localStorage.getItem(state.profileKey)||"{}"); }catch{ return {}; } }
+function saveProfiles(o){ localStorage.setItem(state.profileKey, JSON.stringify(o)); }
+function refreshProfileList(){
+  const obj=loadProfiles(), sel=$("#profile-list"); sel.innerHTML="";
+  Object.keys(obj).forEach(name=>{ const opt=document.createElement("option"); opt.value=name; opt.textContent=name; sel.appendChild(opt); });
+}
+$("#btn-profile-save").addEventListener("click", ()=>{
+  const name=$("#profile-name").value.trim(); if(!name){ alert("プロファイル名を入力してください"); return; }
+  const obj=loadProfiles(); obj[name]=state.items.map(({rarity,name:nn,prob})=>({rarity,name:nn,prob:+prob})); saveProfiles(obj);
+  refreshProfileList(); alert("保存しました");
+});
+$("#btn-profile-load").addEventListener("click", ()=>{
+  const name=$("#profile-list").value; if(!name){ alert("保存済みプロファイルがありません"); return; }
+  const obj=loadProfiles(), data=obj[name]||[];
+  state.items=data.map(o=>({id:uuid(), rarity:o.rarity||"", name:o.name||"", prob:+o.prob||0}));
+  renderList(); $("#profile-name").value=name; alert("読み込みました");
+});
+$("#btn-profile-rename").addEventListener("click", ()=>{
+  const old=$("#profile-list").value; if(!old){ alert("対象を選択してください"); return; }
+  const name=prompt("新しい名前", old); if(!name || name===old) return;
+  const obj=loadProfiles(); obj[name]=obj[old]; delete obj[old]; saveProfiles(obj); refreshProfileList(); $("#profile-name").value=name;
+});
+$("#btn-profile-delete").addEventListener("click", ()=>{
+  const name=$("#profile-list").value; if(!name) return;
+  if(!confirm(`「${name}」を削除しますか？`)) return;
+  const obj=loadProfiles(); delete obj[name]; saveProfiles(obj); refreshProfileList();
+});
+
+/* ================== 星屑パーティクル ================== */
+(function starfield(){
+  const c=$("#starfield"), ctx=c.getContext("2d",{alpha:true});
+  function resize(){ c.width=innerWidth; c.height=innerHeight; }
+  resize(); addEventListener("resize", resize);
+  const STAR_MAX = Math.min(140, Math.floor((innerWidth*innerHeight)/18000));
+  const stars = Array.from({length:STAR_MAX}).map(()=>({
+    x:Math.random()*c.width, y:Math.random()*c.height, r:Math.random()*1.6+0.4,
+    s:Math.random()*0.6+0.2, a:Math.random()*0.4+0.2
+  }));
+  function tick(){
+    ctx.clearRect(0,0,c.width,c.height);
+    for(const st of stars){
+      st.x += st.s; st.y -= st.s*0.15;
+      if(st.x>c.width+10) st.x=-10;
+      if(st.y<-10) st.y=c.height+10;
+      ctx.globalAlpha = st.a;
+      ctx.beginPath(); ctx.arc(st.x,st.y,st.r,0,Math.PI*2);
+      ctx.fillStyle = "#8bd5ff"; ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+/* ================== 初期化 ================== */
+renderList(); refreshProfileList();
+</script>
+</body>
+</html>
