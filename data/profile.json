@@ -1,0 +1,15 @@
+[
+  { "rarity": "UR",  "name": "直筆サイン色紙",   "prob": 0.5 },
+
+  { "rarity": "SSR", "name": "キャンバスアート", "prob": 1.2 },
+  { "rarity": "SSR", "name": "限定Tシャツ",       "prob": 1.3 },
+
+  { "rarity": "SR",  "name": "アクリルスタンド", "prob": 3.5 },
+  { "rarity": "SR",  "name": "マグカップ",       "prob": 3.5 },
+
+  { "rarity": "R",   "name": "缶バッジ",         "prob": 10 },
+  { "rarity": "R",   "name": "ステッカーセット", "prob": 10 },
+
+  { "rarity": "N",   "name": "ポストカード",     "prob": 35 },
+  { "rarity": "N",   "name": "チェキ風カード",   "prob": 25 }
+]
