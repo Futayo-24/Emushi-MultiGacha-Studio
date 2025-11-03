@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emushi Gacha Tool - FX Edition</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <canvas id="starfield"></canvas>
+  <div class="bg-img" aria-hidden="true"></div>
+
+  <!-- オープニング：全画面 -->
+  <div id="intro-screen">
+    <div id="intro-overlay"></div>
+    <div class="intro-title">Emushi MultiGacha Studio</div>
+    <div class="intro-sweep"></div>
+  </div>
+
+  <div class="wrap">
+    <div class="toolbar">
+      <h1 class="title">Emushi Gacha Tool <span class="badge">FX + JSON Profiles</span></h1>
+      <div class="tool-right">
+        <div class="switch" id="gachaSwitch">
+          <button class="active" data-gacha="count">回数モード</button>
+          <button data-gacha="price">価格モード</button>
+        </div>
+        <div class="switch" id="modeSwitch">
+          <button class="active" data-mode="normal">通常</button>
+          <button data-mode="participants">参加者</button>
+        </div>
+        <div id="soundToggle" class="sound-toggle" role="button" aria-pressed="true" data-on="true">🔊 サウンド：<span id="soundLabel">ON</span></div>
+      </div>
+    </div>
+
+    <div class="tabs-bar">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="draw">抽選</button>
+        <button class="tab-btn" data-tab="settings">設定</button>
+        <button class="tab-btn" data-tab="storage">プロファイル</button>
+      </div>
+      <button id="btn-undo-global" class="panic-btn">ミスった！いっかい戻す！</button>
+    </div>
+
+    <!-- ======== 参加者管理（上部・再設計） ======== -->
+    <div id="p-topbar" class="p-manage" style="display:none;">
+      <div class="p-manage-left">
+        <button class="btn btn-ok" id="p-new-open">参加者追加</button>
+        <button class="btn btn-danger" id="p-btn-delete">選択中の参加者を削除</button>
+      </div>
+      <div class="p-manage-right">
+        <input id="p-rename-input" type="text" placeholder="参加者名を入力して変更">
+        <button class="btn-ghost" id="p-rename-apply">参加者名変更</button>
+      </div>
+    </div>
+
+    <div id="participant-tabs-wrap" style="display:none;">
+      <div class="p-tab-bar" id="p-tab-bar"></div>
+    </div>
+
+    <!-- 参加者タイトル＆ポイントKPI（タブと抽選の間） -->
+    <div id="p-stats-bar" class="p-stats" style="display:none;">
+      <div class="p-stats-left">
+        <span class="label">参加者：</span><strong id="p-stats-name">（未選択）</strong>
+      </div>
+      <div class="p-stats-mid">
+        この参加者の累計ポイント：<strong id="kpi-pts-person">0</strong>
+      </div>
+      <div class="p-stats-right">
+        全体累計ポイント：<strong id="kpi-pts-total2">0</strong>
+      </div>
+    </div>
+
+    <!-- ====== 抽選：1カード内でセクション分割（余白統一） ====== -->
+    <div id="tab-draw" class="card section active">
+      <div class="draw-block">
+        <!-- === 回数モード：通常 === -->
+        <div id="count-normal" class="draw-pane">
+          <h3 class="sec-title">回数で抽選</h3>
+          <div class="subcard">
+            <div class="row" style="gap:8px;align-items:center;margin-bottom:8px;">
+              <button class="btn" id="btn-once">1回抽選</button>
+            </div>
+            <div class="row" style="gap:8px;align-items:center;margin-bottom:8px;">
+              <input id="in-times" type="number" min="0" value="10" style="width:140px">
+              <button class="btn btn-ok" id="btn-batch">回数指定で抽選</button>
+              <button class="btn btn-ghost" id="btn-times-reset">リセット</button>
+            </div>
+            <!-- ＋行 ／ ー行 -->
+            <div class="step-row" id="times-plus-row"></div>
+            <div class="step-row" id="times-minus-row" style="margin-top:6px;"></div>
+          </div>
+        </div>
+
+        <!-- === 回数モード：参加者 === -->
+        <div id="count-participants" class="draw-pane" style="display:none;">
+          <h3 class="sec-title">回数で抽選（参加者）</h3>
+          <div class="subcard">
+            <div class="row" style="gap:8px;align-items:center;margin-bottom:8px;">
+              <button class="btn" id="p-btn-once">1回抽選</button>
+
+            </div>
+            <div class="row" style="gap:8px;align-items:center;margin-bottom:8px;">
+              <input id="p-in-times" type="number" min="0" value="10" style="width:140px">
+              <button class="btn btn-ok" id="p-btn-batch">回数指定で抽選</button>
+              <button class="btn btn-ghost" id="p-btn-times-reset">リセット</button>
+            </div>
+            <div class="step-row" id="p-times-plus-row"></div>
+            <div class="step-row" id="p-times-minus-row" style="margin-top:6px;"></div>
+          </div>
+        </div>
+
+        <!-- === 価格モード：通常 === -->
+        <div id="price-normal" class="draw-pane" style="display:none;">
+          <h3 class="sec-title">ポイントで抽選</h3>
+          <div class="subcard">
+            <div class="row" style="gap:8px;align-items:center;margin-bottom:6px;">
+              <input id="in-pts" type="number" min="0" value="0" style="width:160px" placeholder="ポイント">
+              <button class="btn btn-ok" id="btn-pts-draw">ポイントで抽選</button>
+              <button class="btn btn-ghost" id="btn-pts-reset">リセット</button>
+            </div>
+            <!-- ＋行 ／ ー行（横幅拡張） -->
+            <div class="step-row wide" id="pts-plus-row"></div>
+            <div class="step-row wide" id="pts-minus-row" style="margin-top:6px;"></div>
+            <div class="row" style="gap:8px; margin-top:10px;">
+              <span class="pill">総ポイント：<b id="kpi-pts-total">0</b></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- === 価格モード：参加者 === -->
+        <div id="price-participants" class="draw-pane" style="display:none;">
+          <h3 class="sec-title">ポイントで抽選（参加者）</h3>
+          <div class="subcard">
+            <div class="row" style="gap:8px;align-items:center;margin-bottom:6px;">
+              <input id="p-in-pts" type="number" min="0" value="0" style="width:160px" placeholder="ポイント">
+              <button class="btn btn-ok" id="p-btn-pts-draw">ポイントで抽選</button>
+              <button class="btn btn-ghost" id="p-btn-pts-reset">リセット</button>
+            </div>
+            <div class="step-row wide" id="p-pts-plus-row"></div>
+            <div class="step-row wide" id="p-pts-minus-row" style="margin-top:6px;"></div>
+            <div class="row" style="gap:8px; margin-top:10px;">
+              <span class="pill">総ポイント：<b id="kpi-pts-total2_dup">0</b></span>
+              <span class="pill">この参加者：<b id="kpi-pts-person_dup">0</b></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 下段：結果/ログ 共通（右に全体累計結果） -->
+      <div class="draw-bottom grid-2">
+        <div>
+          <div class="title-row">
+            <h3 class="title-inline">結果</h3>
+            <button class="copy-btn" id="btn-copy-current">コピー</button>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-ghost small-tight" id="btn-total-reset">累計リセット</button>
+          </div>
+          <div id="result" class="result result-current"></div>
+
+          <div class="title-row" style="margin-top:12px;">
+            <h3 class="title-inline">累計結果</h3>
+            <button class="copy-btn" id="btn-copy-total">コピー</button>
+          </div>
+          <div id="total" class="result result-total"></div>
+        </div>
+        <div>
+          <h3 style="margin:0 0 6px 0;">ログ</h3>
+          <div id="log" class="log" style="min-height:220px; max-height:420px;"></div>
+          <!-- 参加者モード：全体累計結果 -->
+          <div id="p-overall" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 設定 -->
+    <div id="tab-settings" class="card section grid grid-2" style="display:none">
+      <div>
+        <h3>商品を追加</h3>
+        <div class="row">
+          <div class="field"><label>レア度（自由入力）</label><input id="in-rarity" type="text" placeholder="UR / SSR / SR / R / N"></div>
+          <div class="field"><label>商品名</label><input id="in-name" type="text" placeholder="直筆サイン色紙"></div>
+          <div class="field"><label>確率（%）</label><input id="in-prob" type="number" min="0" step="0.0001" placeholder="0.3333"></div>
+        </div>
+        <div class="row" style="gap:8px;margin-top:8px">
+          <button class="btn" id="btn-add">商品追加</button>
+          <button class="btn btn-ghost" id="btn-clear">一覧クリア</button>
+        </div>
+        <div class="divider"></div>
+        <div class="row" style="gap:8px; margin-bottom:8px;">
+          <span class="pill">合計確率: <span id="kpi-total">0%</span></span>
+          <span class="pill">ハズレ: <span id="kpi-miss">100%</span></span>
+          <span class="pill">アイテム数: <span id="kpi-count">0</span></span>
+        </div>
+        <h3>商品一覧 <span id="sum-prob" class="small"></span></h3>
+        <div id="list"></div>
+        <div class="small" id="warn-over"></div>
+      </div>
+
+      <div>
+        <h3>ガチャ価格設定（価格モード）</h3>
+        <div class="row">
+          <div class="field"><label>1回あたりのポイント</label><input id="price-per-pull" type="number" min="1" value="300"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>端数（あまり）を次に引き継ぐ</label>
+            <select id="opt-carry-rem"><option value="1">有効</option><option value="0">無効</option></select>
+          </div>
+          <div class="field"><label>不足ポイントの累積（例：100pt×3で1回）</label>
+            <select id="opt-accum-ins"><option value="1">有効</option><option value="0">無効</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field"><label>回数カウント方式</label>
+            <select id="opt-scope"><option value="cumulative">累計ポイントから計算</option><option value="session">今回入力分のみ</option></select>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <h4>ボーナス設定（しきい値 到達時の追加回数）</h4>
+        <div id="bonus-list" class="subcard small" style="margin-bottom:8px;"></div>
+        <div class="row">
+          <div class="field"><label>しきい値（pt）</label><input id="bonus-th" type="number" min="1" value="3000"></div>
+          <div class="field"><label>ボーナス回数</label><input id="bonus-pulls" type="number" min="1" value="1"></div>
+        </div>
+        <div class="row" style="gap:8px; margin-top:6px;">
+          <button class="btn btn-ghost" id="btn-bonus-add">ボーナスを追加</button>
+          <button class="btn btn-ghost" id="btn-bonus-clear">全て削除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- プロファイル -->
+    <div id="tab-storage" class="card section" style="display:none">
+      <h3>プロファイル / JSON入出力</h3>
+      <div class="row">
+        <div class="field" style="max-width:320px"><label>プロファイル名</label><input id="profile-name" type="text" placeholder="闇ガチャ_配信"></div>
+        <div class="field" style="max-width:320px"><label>保存済みプロファイル</label><select id="profile-list"></select></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px">
+        <button class="btn" id="btn-profile-save">この設定を保存</button>
+        <button class="btn btn-ghost" id="btn-profile-load">読み込み</button>
+        <button class="btn btn-ghost" id="btn-profile-rename">名前変更</button>
+        <button class="btn btn-danger" id="btn-profile-delete">削除</button>
+      </div>
+      <p class="small">保存先はブラウザの <b>localStorage</b>。同じ端末/ブラウザで使ってください。</p>
+
+      <div class="divider"></div>
+      <h3>JSON入出力</h3>
+      <div class="json-flow">
+        <div class="json-step">
+          <h4>① 今の設定を書き出す</h4>
+          <p>押すと下にJSONが出るのでコピーしておけます。</p>
+          <button class="btn btn-ghost" id="btn-export">設定を書き出し</button>
+          <button class="btn btn-ghost" id="btn-json-copy">↑ 書き出したのをコピー</button>
+        </div>
+        <div class="json-step">
+          <h4>② 保存してあるJSONを読み込む</h4>
+          <p>下にペーストしてから「設定を読み込み」。</p>
+          <button class="btn btn-ghost" id="btn-json-paste">↓ ペースト</button>
+          <button class="btn btn-ghost" id="btn-import">設定を読み込み</button>
+        </div>
+      </div>
+      <textarea id="json-area" rows="8" placeholder='[{"rarity":"SSR","name":"景品A","prob":1.5}]' style="margin-top:10px"></textarea>
+    </div>
+  </div>
+
+  <!-- 中央トースト＆モーダル -->
+  <div id="toast">コピーしました</div>
+
+  <!-- 参加者追加用の簡易モーダル（中央入力） -->
+  <div id="p-modal" class="p-modal" style="display:none;">
+    <div class="p-modal-bg"></div>
+    <div class="p-modal-card">
+      <h3 class="modal-title">参加者を追加</h3>
+      <input id="p-new-input" type="text" placeholder="参加者名">
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="p-new-cancel">キャンセル</button>
+        <button class="btn btn-ok" id="p-new-add">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <audio id="sfx-draw" src="./assets/sfx/sfx_draw.mp3" preload="auto"></audio>
+  <script src="./app.js"></script>
+</body>
+</html>
